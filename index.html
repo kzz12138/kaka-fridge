@@ -362,12 +362,11 @@
             const renderGrid = () => (
                 <div className="p-4 pb-24 grid grid-cols-2 md:grid-cols-4 gap-4">
                     {filteredItems.map(item => {
-                        const isEmpty = item.quantity <= 0;
                         const DisplayIcon = () => (
-                            item.icon 
-                            ? <span className="text-3xl">{item.icon}</span> 
-                            : <span className="text-xl font-bold text-white bg-accent-dark w-10 h-10 rounded-full flex items-center justify-center">{item.name[0]}</span>
-                        );
+    item.icon 
+    ? <span className="text-3xl">{item.icon}</span> 
+    : <span className="text-xl font-bold text-white bg-accent-dark w-10 h-10 rounded-full flex items-center justify-center">{item.name[0]}</span>
+);
 
                         return (
                             <div 
