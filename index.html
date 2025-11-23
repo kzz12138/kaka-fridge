@@ -141,9 +141,9 @@
             // FIX: 提前定义 activeCategoryInfo 
             const activeCategoryInfo = CATEGORIES.find(c => c.id === activeCategory);
             
-            // **【修改部分】**：新增排序逻辑，将数量为 0 的食材卡片自动移到当前分类列表的最后
+            // FIX: 排序前创建副本，防止在渲染过程中直接修改数组
             const categoryItems = items.filter(i => i.category === activeCategory);
-            const filteredItems = categoryItems.sort((a, b) => {
+            const filteredItems = [...categoryItems].sort((a, b) => { // <--- 关键修复在这里：使用 [...] 创建副本
                 const aIsEmpty = a.quantity <= 0;
                 const bIsEmpty = b.quantity <= 0;
                 
