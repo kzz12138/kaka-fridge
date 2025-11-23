@@ -359,102 +359,107 @@
                 </div>
             );
 
-            const renderGrid = () => (
-                <div className="p-4 pb-24 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {filteredItems.map(item => {
-                        const DisplayIcon = () => (
-    item.icon 
-    ? <span className="text-3xl">{item.icon}</span> 
-    : <span className="text-xl font-bold text-white bg-accent-dark w-10 h-10 rounded-full flex items-center justify-center">{item.name[0]}</span>
-);
+     const renderGrid = () => {
+    const activeCategoryInfo = CATEGORIES.find(c => c.id === activeCategory);
+    
+    return (
+        <div className="p-4 pb-24 grid grid-cols-2 md:grid-cols-4 gap-4">
+            {filteredItems.map(item => {
+                const isEmpty = item.quantity <= 0;
+                const DisplayIcon = () => (
+                    item.icon 
+                    ? <span className="text-3xl">{item.icon}</span> 
+                    : <span className="text-xl font-bold text-white bg-accent-dark w-10 h-10 rounded-full flex items-center justify-center">{item.name[0]}</span>
+                );
 
-                        return (
-                            <div 
-                                key={item.id} 
-                                onClick={() => setEditingItem(item)}
-                                className={`bg-white rounded-2xl px-3 pt-3 pb-4 card-shadow flex flex-col relative transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-accent-light active:scale-[0.98] ${isEmpty ? 'item-empty' : ''}`}
-                            >
-                                {/* 1. Header Row: Icon + Name + Delete */}
-                                <div className="flex justify-between items-start mb-2">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                                        <div className="shrink-0"><DisplayIcon /></div>
-                                        <h3 className="font-bold text-gray-800 text-lg leading-tight truncate">{item.name}</h3>
-                                    </div>
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
-                                        className="text-gray-300 hover:text-red-400 p-1 shrink-0"
-                                    >
-                                        <Icons.Trash2 size={16}/>
-                                    </button>
-                                </div>
-
-                                {/* 2. Quantity Section (主数量使用活力橙) */}
-                                <div className="flex items-baseline gap-1 mb-2">
-                                    <span className={`text-3xl font-black tracking-tight ${isEmpty ? 'text-gray-400' : 'text-accent-dark'}`}>
-                                        {item.quantity}
-                                    </span>
-                                    <span className="text-sm text-gray-400 font-bold">{item.unit}</span>
-                                </div>
-
-                                {/* 3. Dates Section */}
-                                <div className="mb-3 space-y-1">
-                                    {item.purchaseDate && (
-                                        <div className="inline-flex items-center gap-1 text-xs text-morandi-dark bg-morandi-light/50 px-2 py-0.5 rounded font-medium">
-                                            <Icons.Calendar size={12} /> {item.purchaseDate}
-                                        </div>
-                                    )}
-                                    {item.expiryDate && (
-                                        <div className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-100 px-2 py-0.5 rounded font-medium">
-                                            <Icons.Clock size={12} /> {item.expiryDate}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* 4. Bottom Row: History & Controls (mt-auto 顶到最底部，确保有底边距) */}
-                                <div className="flex items-end justify-between mt-auto pt-3 border-t border-gray-100">
-                                    <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1">
-                                        <Icons.History size={10}/> 消耗 {item.totalUsed}
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                        {/* 新增：批量减少按钮 - 触发自定义模态框 */}
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleOpenBulkReduce(item); }}
-                                            className="text-[10px] font-bold w-8 h-8 rounded-full bg-accent-dark/10 text-accent-dark flex items-center justify-center hover:bg-accent-dark/20 active:scale-90 transition"
-                                        >
-                                            批量
-                                        </button>
-                                        
-                                        {/* 减号按钮：短按 -1 (使用浅奶油黄背景 + 深芥末黄文字) */}
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}
-                                            className="w-8 h-8 rounded-full bg-morandi-light text-morandi-dark flex items-center justify-center hover:bg-morandi-dark/20 active:scale-90 transition cursor-pointer"
-                                        >
-                                            <Icons.Minus size={16} />
-                                        </button>
-
-                                        {/* 加号按钮：短按 +1 (使用活力橙主色) */}
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}
-                                            className="w-8 h-8 rounded-full bg-accent-dark text-white flex items-center justify-center shadow-md shadow-accent-light/50 hover:bg-accent-light active:scale-90 transition"
-                                        >
-                                            <Icons.Plus size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                    
-                    <button 
-                        onClick={() => setIsFormOpen(true)}
-                        className="border-2 border-dashed border-morandi-dark/30 rounded-2xl flex flex-col items-center justify-center text-morandi-dark/50 gap-2 h-48 hover:bg-morandi-light/50 hover:border-morandi-dark transition"
+                return (
+                    <div 
+                        key={item.id} 
+                        onClick={() => setEditingItem(item)}
+                        className={`bg-white rounded-2xl px-3 pt-3 pb-4 card-shadow flex flex-col relative transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-accent-light active:scale-[0.98] ${isEmpty ? 'item-empty' : ''}`}
                     >
-                        <Icons.Plus size={32} />
-                        <span className="text-xs font-bold">入库{activeCategoryInfo.name}</span>
-                    </button>
-                </div>
-            );
+                        {/* 1. Header Row: Icon + Name + Delete */}
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                <div className="shrink-0"><DisplayIcon /></div>
+                                <h3 className="font-bold text-gray-800 text-lg leading-tight truncate">{item.name}</h3>
+                            </div>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
+                                className="text-gray-300 hover:text-red-400 p-1 shrink-0"
+                            >
+                                <Icons.Trash2 size={16}/>
+                            </button>
+                        </div>
+
+                        {/* 2. Quantity Section (主数量使用活力橙) */}
+                        <div className="flex items-baseline gap-1 mb-2">
+                            <span className={`text-3xl font-black tracking-tight ${isEmpty ? 'text-gray-400' : 'text-accent-dark'}`}>
+                                {item.quantity}
+                            </span>
+                            <span className="text-sm text-gray-400 font-bold">{item.unit}</span>
+                        </div>
+
+                        {/* 3. Dates Section */}
+                        <div className="mb-3 space-y-1">
+                            {item.purchaseDate && (
+                                <div className="inline-flex items-center gap-1 text-xs text-morandi-dark bg-morandi-light/50 px-2 py-0.5 rounded font-medium">
+                                    <Icons.Calendar size={12} /> {item.purchaseDate}
+                                </div>
+                            )}
+                            {item.expiryDate && (
+                                <div className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-100 px-2 py-0.5 rounded font-medium">
+                                    <Icons.Clock size={12} /> {item.expiryDate}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 4. Bottom Row: History & Controls (mt-auto 顶到最底部，确保有底边距) */}
+                        <div className="flex items-end justify-between mt-auto pt-3 border-t border-gray-100">
+                            <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1">
+                                <Icons.History size={10}/> 消耗 {item.totalUsed}
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                {/* 新增：批量减少按钮 - 触发自定义模态框 */}
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleOpenBulkReduce(item); }}
+                                    className="text-[10px] font-bold w-8 h-8 rounded-full bg-accent-dark/10 text-accent-dark flex items-center justify-center hover:bg-accent-dark/20 active:scale-90 transition"
+                                >
+                                    批量
+                                </button>
+                                
+                                {/* 减号按钮：短按 -1 (使用浅奶油黄背景 + 深芥末黄文字) */}
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}
+                                    className="w-8 h-8 rounded-full bg-morandi-light text-morandi-dark flex items-center justify-center hover:bg-morandi-dark/20 active:scale-90 transition cursor-pointer"
+                                >
+                                    <Icons.Minus size={16} />
+                                </button>
+
+                                {/* 加号按钮：短按 +1 (使用活力橙主色) */}
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}
+                                    className="w-8 h-8 rounded-full bg-accent-dark text-white flex items-center justify-center shadow-md shadow-accent-light/50 hover:bg-accent-light active:scale-90 transition"
+                                >
+                                    <Icons.Plus size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+            
+            <button 
+                onClick={() => setIsFormOpen(true)}
+                className="border-2 border-dashed border-morandi-dark/30 rounded-2xl flex flex-col items-center justify-center text-morandi-dark/50 gap-2 h-48 hover:bg-morandi-light/50 hover:border-morandi-dark transition"
+            >
+                <Icons.Plus size={32} />
+                <span className="text-xs font-bold">入库{activeCategoryInfo.name}</span>
+            </button>
+        </div>
+    );
+};
 
             // 通用输入组件
             const renderInput = (label, value, onChange, placeholder = "", type = "text", inputClassName = "") => (
