@@ -100,7 +100,7 @@
             Calendar: (props) => <IconBase {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></Calendar>,
             Clock: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></IconBase>,
             X: (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>,
-            Edit: (props) => <IconBase {...props}><path d="M11 4H4a2 0 0 0-2 2v14a2 0 0 0 2 2h14a2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></IconBase>,
+            Edit: (props) => <IconBase {...props}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></IconBase>,
             Fridge: (props) => <IconBase {...props}><rect x="5" y="1" width="14" height="22" rx="2" ry="2"></rect><line x1="12" y1="1" x2="12" y2="23"></line><line x1="7" y1="5" x2="7" y2="7"></line><line x1="7" y1="17" x2="7" y2="19"></line></IconBase>
         };
 
@@ -138,16 +138,22 @@
             const [items, setItems] = useState([]);
             const [activeCategory, setActiveCategory] = useState('meat');
             
-            // FIX: 提前定义 activeCategoryInfo 
             const activeCategoryInfo = CATEGORIES.find(c => c.id === activeCategory);
             
-            // FIX: 排序前创建副本，防止在渲染过程中直接修改数组
+            // 筛选当前分类的食材
             const categoryItems = items.filter(i => i.category === activeCategory);
-            const filteredItems = [...categoryItems].sort((a, b) => { // <--- 关键修复在这里：使用 [...] 创建副本
-                const aIsEmpty = a.quantity <= 0;
-                const bIsEmpty = b.quantity <= 0;
-                
-                // 使用布尔值相减进行排序：非空 (false/0) 优先于 空 (true/1)
+            
+            // **【关键修复】**：创建副本并使用健壮的排序逻辑
+            const filteredItems = [...categoryItems].sort((a, b) => { 
+                // 1. 健壮地获取数量：确保 quantity 是一个有效的数字，否则默认为 0
+                const aQty = Number(a.quantity) || 0;
+                const bQty = Number(b.quantity) || 0;
+
+                // 2. 判断是否为空
+                const aIsEmpty = aQty <= 0; // 数量 <= 0 视为“空” (true=1, false=0)
+                const bIsEmpty = bQty <= 0; 
+
+                // 3. 排序：非空 (0) - 空 (1) = -1, 非空排在前。空 (1) - 非空 (0) = 1, 空排在后。
                 return aIsEmpty - bIsEmpty;
             });
 
@@ -273,9 +279,12 @@
             const updateQuantity = (id, delta) => {
                 setItems(items.map(item => {
                     if (item.id === id) {
-                        const newQuantity = Math.max(0, item.quantity + delta);
+                        // 健壮地处理 quantity
+                        const currentQuantity = Number(item.quantity) || 0;
+                        
+                        const newQuantity = Math.max(0, currentQuantity + delta);
                         // 确保消耗量是正数，只在减少时增加消耗量
-                        const usedDelta = delta < 0 ? (item.quantity - newQuantity) : 0; 
+                        const usedDelta = delta < 0 ? (currentQuantity - newQuantity) : 0; 
                         return { 
                             ...item, 
                             quantity: Number(newQuantity.toFixed(2)), 
@@ -299,7 +308,7 @@
                 if (!bulkReducingItem) return;
 
                 const val = parseFloat(bulkReduceAmount);
-                const currentQuantity = bulkReducingItem.quantity;
+                const currentQuantity = Number(bulkReducingItem.quantity) || 0; // 健壮地获取数量
                 
                 if (isNaN(val) || val <= 0) {
                     setBulkError("请输入一个有效的正数！");
@@ -372,7 +381,8 @@
     return (
         <div className="p-4 pb-24 grid grid-cols-2 md:grid-cols-4 gap-4">
             {filteredItems.map(item => {
-                const isEmpty = item.quantity <= 0;
+                // 健壮地判断是否为空
+                const isEmpty = (Number(item.quantity) || 0) <= 0;
                 const DisplayIcon = () => (
                     item.icon 
                     ? <span className="text-3xl">{item.icon}</span> 
@@ -401,8 +411,9 @@
 
                         {/* 2. Quantity Section (主数量使用活力橙) */}
                         <div className="flex items-baseline gap-1 mb-2">
+                            {/* 使用 Number(item.quantity) || 0 确保显示的是一个数字 */}
                             <span className={`text-3xl font-black tracking-tight ${isEmpty ? 'text-gray-400' : 'text-accent-dark'}`}>
-                                {item.quantity}
+                                {Number(item.quantity) || 0}
                             </span>
                             <span className="text-sm text-gray-400 font-bold">{item.unit}</span>
                         </div>
@@ -424,7 +435,7 @@
                         {/* 4. Bottom Row: History & Controls (mt-auto 顶到最底部，确保有底边距) */}
                         <div className="flex items-end justify-between mt-auto pt-3 border-t border-gray-100">
                             <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1">
-                                <Icons.History size={10}/> 消耗 {item.totalUsed}
+                                <Icons.History size={10}/> 消耗 {Number(item.totalUsed) || 0}
                             </div>
                             
                             <div className="flex items-center gap-2">
@@ -576,7 +587,7 @@
 
                             <form onSubmit={handleConfirmBulkReduce} className="space-y-5">
                                 <div className="text-sm text-gray-500 mb-4">
-                                    当前库存: <span className="font-bold text-accent-dark text-base">{item.quantity}</span> {item.unit}
+                                    当前库存: <span className="font-bold text-accent-dark text-base">{Number(item.quantity) || 0}</span> {item.unit}
                                 </div>
 
                                 <div>
