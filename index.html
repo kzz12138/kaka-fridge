@@ -166,7 +166,6 @@
             const [bulkReduceAmount, setBulkReduceAmount] = useState('');
             const [bulkError, setBulkError] = useState('');
 
-
             useEffect(() => {
                 const saved = localStorage.getItem('kaka_fridge_items');
                 if (saved) setItems(JSON.parse(saved));
@@ -419,4 +418,276 @@
                                     </div>
                                     
                                     <div className="flex items-center gap-2">
-                                        {
+                                        {/* 新增：批量减少按钮 - 触发自定义模态框 */}
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleOpenBulkReduce(item); }}
+                                            className="text-[10px] font-bold w-8 h-8 rounded-full bg-accent-dark/10 text-accent-dark flex items-center justify-center hover:bg-accent-dark/20 active:scale-90 transition"
+                                        >
+                                            批量
+                                        </button>
+                                        
+                                        {/* 减号按钮：短按 -1 (使用浅奶油黄背景 + 深芥末黄文字) */}
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}
+                                            className="w-8 h-8 rounded-full bg-morandi-light text-morandi-dark flex items-center justify-center hover:bg-morandi-dark/20 active:scale-90 transition cursor-pointer"
+                                        >
+                                            <Icons.Minus size={16} />
+                                        </button>
+
+                                        {/* 加号按钮：短按 +1 (使用活力橙主色) */}
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}
+                                            className="w-8 h-8 rounded-full bg-accent-dark text-white flex items-center justify-center shadow-md shadow-accent-light/50 hover:bg-accent-light active:scale-90 transition"
+                                        >
+                                            <Icons.Plus size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    
+                    <button 
+                        onClick={() => setIsFormOpen(true)}
+                        className="border-2 border-dashed border-morandi-dark/30 rounded-2xl flex flex-col items-center justify-center text-morandi-dark/50 gap-2 h-48 hover:bg-morandi-light/50 hover:border-morandi-dark transition"
+                    >
+                        <Icons.Plus size={32} />
+                        <span className="text-xs font-bold">入库{activeCategoryInfo.name}</span>
+                    </button>
+                </div>
+            );
+
+            // 通用输入组件
+            const renderInput = (label, value, onChange, placeholder = "", type = "text", inputClassName = "") => (
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{label}</label>
+                    <input 
+                        type={type}
+                        value={value} 
+                        onChange={onChange} 
+                        className={`w-full bg-gray-100 border border-gray-200 rounded-xl p-3 text-lg font-bold text-gray-800 focus:ring-2 focus:ring-accent-dark outline-none placeholder-gray-400 ${inputClassName}`} 
+                        placeholder={placeholder} 
+                    />
+                </div>
+            );
+
+            const renderAddForm = () => {
+                if (!isFormOpen) return null;
+                const isFresh = activeCategoryInfo.type === 'fresh';
+
+                return (
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+                        <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-bounce-up">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    放入<span className="text-accent-dark">{activeCategoryInfo.name}</span>
+                                </h2>
+                                <button onClick={() => setIsFormOpen(false)} className="bg-gray-100 p-1 rounded-full text-gray-400 hover:text-accent-dark">
+                                    <Icons.X size={24} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleAdd} className="space-y-5">
+                                {renderInput("食材名称", formData.name, e => setFormData({...formData, name: e.target.value}), "例如：牛肋条")}
+
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        {renderInput("数量", formData.quantity, e => setFormData({...formData, quantity: e.target.value}), "0", "number")}
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">单位</label>
+                                        <div className="flex bg-gray-100 rounded-xl p-1 border border-gray-200 h-[54px] items-center">
+                                            {UNITS.map(u => (
+                                                <button
+                                                    key={u}
+                                                    type="button"
+                                                    onClick={() => setFormData({...formData, unit: u})}
+                                                    className={`flex-1 h-full rounded-lg text-sm font-bold transition-all ${
+                                                        formData.unit === u 
+                                                        ? 'bg-white text-accent-dark shadow-sm border border-accent-light/30' 
+                                                        : 'text-gray-500 hover:text-accent-dark'
+                                                    }`}
+                                                >
+                                                    {u}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                                        {isFresh ? '购买日期 (非必填)' : '保质期至 (非必填)'}
+                                    </label>
+                                    <div className="relative">
+                                        <input 
+                                            type="text" 
+                                            value={formData.date} 
+                                            onChange={e => setFormData({...formData, date: e.target.value})} 
+                                            className={`w-full bg-gray-100 border border-gray-200 rounded-xl p-3 text-gray-700 outline-none focus:ring-2 ${isFresh ? 'focus:ring-accent-dark' : 'focus:ring-red-400'}`} 
+                                            placeholder="输入 250908 自动变日期"
+                                        />
+                                        <div className="absolute right-3 top-3.5 text-gray-400 pointer-events-none">
+                                            {isFresh ? <Icons.Calendar size={18}/> : <Icons.Clock size={18}/>}
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mt-1 ml-1">
+                                        支持 6 位数字速记：250908 = 2025-09-08
+                                    </p>
+                                </div>
+
+                                <button type="submit" className="w-full bg-gradient-to-r from-accent-dark to-accent-light text-white font-bold py-4 rounded-xl shadow-lg shadow-accent-light/40 hover:shadow-xl hover:scale-[1.01] transition active:scale-95 flex justify-center items-center gap-2">
+                                    <Icons.PackageOpen size={20} /> 放入冰箱
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
+
+            // 新增：批量减少输入模态框
+            const renderBulkReduceModal = () => {
+                if (!bulkReducingItem) return null;
+                const item = bulkReducingItem;
+
+                return (
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+                        <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-bounce-up">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    批量消耗：{item.name}
+                                </h2>
+                                <button onClick={handleCancelBulkReduce} className="bg-gray-100 p-1 rounded-full text-gray-400 hover:text-accent-dark">
+                                    <Icons.X size={24} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleConfirmBulkReduce} className="space-y-5">
+                                <div className="text-sm text-gray-500 mb-4">
+                                    当前库存: <span className="font-bold text-accent-dark text-base">{item.quantity}</span> {item.unit}
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">减少数量</label>
+                                    <input 
+                                        type="number"
+                                        value={bulkReduceAmount} 
+                                        onChange={e => {setBulkReduceAmount(e.target.value); setBulkError('');}} 
+                                        className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3 text-3xl font-black text-accent-dark text-center focus:ring-2 focus:ring-accent-dark outline-none" 
+                                        placeholder="0"
+                                        min="0"
+                                        autoFocus
+                                    />
+                                    {bulkError && <p className="mt-2 text-sm text-red-500 font-medium">{bulkError}</p>}
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <button 
+                                        type="button" 
+                                        onClick={handleCancelBulkReduce} 
+                                        className="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-300 transition active:scale-95"
+                                    >
+                                        取消
+                                    </button>
+                                    <button 
+                                        type="submit" 
+                                        className="flex-1 bg-accent-dark text-white font-bold py-3 rounded-xl shadow-lg shadow-accent-light/40 hover:bg-accent-light transition active:scale-95"
+                                    >
+                                        确认消耗
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderEditForm = () => {
+                if (!editingItem) return null;
+                const categoryInfo = CATEGORIES.find(c => c.id === editingItem.category);
+                const isFresh = categoryInfo?.type === 'fresh';
+
+                return (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                        <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-bounce-up">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <Icons.Edit size={20} className="text-accent-dark"/> 编辑食材
+                                </h2>
+                                <button onClick={() => setEditingItem(null)} className="bg-gray-100 p-1 rounded-full text-gray-400 hover:text-accent-dark">
+                                    <Icons.X size={24} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSaveEdit} className="space-y-5">
+                                {renderInput("食材名称", editForm.name, e => setEditForm({...editForm, name: e.target.value}))}
+
+                                <div className="flex gap-4">
+                                    <div className="flex-1">
+                                        {renderInput("当前数量", editForm.quantity, e => setEditForm({...editForm, quantity: e.target.value}), "", "number")}
+                                    </div>
+                                    <div className="flex-1">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">单位</label>
+                                        <div className="flex bg-gray-100 rounded-xl p-1 border border-gray-200 h-[54px] items-center">
+                                            {UNITS.map(u => (
+                                                <button
+                                                    key={u}
+                                                    type="button"
+                                                    onClick={() => setEditForm({...editForm, unit: u})}
+                                                    className={`flex-1 h-full rounded-lg text-sm font-bold transition-all ${
+                                                        editForm.unit === u 
+                                                        ? 'bg-white text-accent-dark shadow-sm border border-accent-light/30' 
+                                                        : 'text-gray-500 hover:text-accent-dark'
+                                                    }`}
+                                                >
+                                                    {u}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <div className="flex-[2]">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                                            {isFresh ? '购买日期' : '保质期至'}
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            value={editForm.date} 
+                                            onChange={e => setEditForm({...editForm, date: e.target.value})} 
+                                            className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3 text-gray-700 outline-none focus:ring-2 focus:ring-accent-dark" 
+                                            placeholder="6位数字"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        {renderInput("累计消耗", editForm.totalUsed, e => setEditForm({...editForm, totalUsed: e.target.value}), "0", "number")}
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="w-full bg-accent-dark text-white font-bold py-4 rounded-xl shadow-lg shadow-accent-light/40 hover:bg-accent-light transition active:scale-95">
+                                    保存修改
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen">
+                    {renderNav()}
+                    {renderGrid()}
+                    {renderAddForm()}
+                    {renderEditForm()}
+                    {renderBulkReduceModal()} {/* 批量减少模态框 */}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
