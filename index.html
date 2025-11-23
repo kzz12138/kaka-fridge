@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>咔咔冰箱 | Kaka Fridge</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script>
+        // 定义全新的黄色/橙色主题
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // 页面背景 (极浅奶油黄) - NEW
+                        cream: '#fff8e1', 
+                        // 导航栏/深色 (深芥末黄) - NEW
+                        morandi: {
+                            light: '#ffecb3', // 导航栏背景 (浅奶油黄)
+                            dark: '#e6a500',  // 导航文字/深色 (深芥末黄)
+                        },
+                        // 卡片文字/强调色 (活力橙色) - NEW
+                        accent: {
+                            light: '#ffb74d', // 次要/hover (浅橙色)
+                            dark: '#ff9800',  // 核心橙色 (活力橙)
+                        },
+                        snow: '#ffffff',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 页面主体背景改为柔和的奶油黄 */
+        body { background-color: #fff8e1; color: #374151; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        
+        /* 卡片阴影使用浅橙色 */
+        /* RGB(255, 183, 77) from #ffb74d */
+        .card-shadow { 
+            box-shadow: 0 4px 15px -2px rgba(255, 183, 77, 0.4); 
+            height: 12.5rem; 
+        }
+        
+        /* 导航栏背景改为浅奶油黄 */
+        .glass-nav { 
+            background: #ffecb3; /* 浅奶油黄背景 */
+            backdrop-filter: blur(8px); 
+            border-bottom: 1px solid rgba(230, 165, 0, 0.15); /* 使用深芥末黄的淡边框 */
+        }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 数量归零时的灰色状态 */
+        .item-empty { filter: grayscale(100%); opacity: 0.6; }
+        
+        /* 弹窗动画 */
+        @keyframes bounce-up {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-bounce-up {
+            animation: bounce-up 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- 内置图标组件 ---
+        const IconBase = ({ size = 24, children, className = "" }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className={className}
+            >
+                {children}
+            </svg>
+        );
+
+        const Icons = {
+            Plus: (props) => <IconBase {...props}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>,
+            Minus: (props) => <IconBase {...props}><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>,
+            PackageOpen: (props) => <IconBase {...props}><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z"></path><path d="M12 12l9-4.5"></path><path d="M12 12v9"></path><path d="M12 12L3 7.5"></path><path d="M16 10l-4-2-4 2"></path></IconBase>,
+            // 修复：删除了多余的 </path> 闭合标签和重复的 path 元素
+            History: (props) => <IconBase {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"></path><path d="M3 3v9h9"></path></IconBase>,
+            Trash2: (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 0 0 1-2 2H7a2 0 0 1-2-2V6m3 0V4a2 0 0 1 2-2h4a2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></IconBase>,
+            Calendar: (props) => <IconBase {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></IconBase>,
+            Clock: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></IconBase>,
+            X: (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>,
+            Edit: (props) => <IconBase {...props}><path d="M11 4H4a2 0 0 0-2 2v14a2 0 0 0 2 2h14a2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></IconBase>,
+            Fridge: (props) => <IconBase {...props}><rect x="5" y="1" width="14" height="22" rx="2" ry="2"></rect><line x1="12" y1="1" x2="12" y2="23"></line><line x1="7" y1="5" x2="7" y2="7"></line><line x1="7" y1="17" x2="7" y2="19"></line></IconBase>
+        };
+
+        const ICON_MAP = {
+            '肉': '🥩', '牛': '🥩', '羊': '🍖', '猪': '🥓', '鸡': '🍗', '鸭': '🍗', '鱼': '🐟', '虾': '🦐', '蟹': '🦀', '蛋': '🥚',
+            '菜': '🥬', '果': '🍎', '瓜': '🍉', '豆': '🥔', '菇': '🍄', '葱': '🧅', '蒜': '🧄', '椒': '🌶️', '茄': '🍆', '胡萝卜': '🥕', '玉米': '🌽',
+            '米': '🍚', '面': '🍜', '粉': '🍜', '包': '🍞', '饼': '🍪', '饺': '🥟',
+            '奶': '🥛', '酪': '🧀', '油': '🧈', '酸奶': '🥤',
+            '面': '🍜', '速': '🍕', '冻': '🧊',
+            '盐': '🧂', '糖': '🍬', '酱': '🥫', '醋': '🍾', '油': '🛢️', '辣': '🌶️',
+            '水': '💧', '酒': '🍺', '茶': '🍵', '咖': '☕',
+        };
+
+        const CATEGORIES = [
+            { id: 'meat', name: '肉菜', type: 'fresh' },
+            { id: 'veg', name: '素菜', type: 'fresh' },
+            { id: 'staple', name: '主食', type: 'shelf' },
+            { id: 'dairy', name: '奶制品', type: 'shelf' },
+            { id: 'instant', name: '速食', type: 'shelf' },
+            { id: 'seasoning', name: '调料', type: 'shelf' },
+            { id: 'other', name: '其他', type: 'shelf' },
+        ];
+
+        const UNITS = ['个', 'g', 'kg'];
+
+        const getIcon = (name) => {
+            if (!name) return '📦';
+            for (let key in ICON_MAP) {
+                if (name.includes(key)) return ICON_MAP[key];
+            }
+            return null;
+        };
+
+        const App = () => {
+            const [items, setItems] = useState([]);
+            const [activeCategory, setActiveCategory] = useState('meat');
+            
+            // Add Form State
+            const [isFormOpen, setIsFormOpen] = useState(false);
+            const [formData, setFormData] = useState({
+                name: '',
+                quantity: '',
+                unit: '个',
+                date: '', 
+            });
+
+            // Edit Form State
+            const [editingItem, setEditingItem] = useState(null);
+            const [editForm, setEditForm] = useState({
+                name: '',
+                quantity: '',
+                unit: '',
+                date: '',
+                totalUsed: ''
+            });
+
+            // Bulk Reduce Modal State
+            const [bulkReducingItem, setBulkReducingItem] = useState(null);
+            const [bulkReduceAmount, setBulkReduceAmount] = useState('');
+            const [bulkError, setBulkError] = useState('');
+
+
+            useEffect(() => {
+                const saved = localStorage.getItem('kaka_fridge_items');
+                if (saved) setItems(JSON.parse(saved));
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('kaka_fridge_items', JSON.stringify(items));
+            }, [items]);
+
+            // Sync editing item to form
+            useEffect(() => {
+                if (editingItem) {
+                    const categoryInfo = CATEGORIES.find(c => c.id === editingItem.category);
+                    const isFresh = categoryInfo?.type === 'fresh';
+                    const dateValue = isFresh ? (editingItem.purchaseDate || '') : (editingItem.expiryDate || '');
+                    
+                    setEditForm({
+                        name: editingItem.name,
+                        quantity: editingItem.quantity,
+                        unit: editingItem.unit,
+                        date: dateValue,
+                        totalUsed: editingItem.totalUsed
+                    });
+                }
+            }, [editingItem]);
+
+            // 解析 6 位数字日期 (YYMMDD -> YYYY-MM-DD)
+            const parseDateInput = (val) => {
+                if (!val) return '';
+                const cleanVal = String(val).trim();
+                if (/^\d{6}$/.test(cleanVal)) {
+                    const y = '20' + cleanVal.substring(0, 2);
+                    const m = cleanVal.substring(2, 4);
+                    const d = cleanVal.substring(4, 6);
+                    return `${y}-${m}-${d}`;
+                }
+                return cleanVal;
+            };
+
+            const handleAdd = (e) => {
+                e.preventDefault();
+                if (!formData.name || !formData.quantity) return;
+
+                const cleanName = formData.name.trim();
+                
+                const categoryInfo = CATEGORIES.find(c => c.id === activeCategory);
+                const isFresh = categoryInfo.type === 'fresh';
+                const finalDate = parseDateInput(formData.date);
+
+                const newItem = {
+                    id: Date.now(),
+                    category: activeCategory,
+                    name: cleanName,
+                    quantity: parseFloat(formData.quantity),
+                    unit: formData.unit,
+                    purchaseDate: isFresh ? finalDate : null,
+                    expiryDate: !isFresh ? finalDate : null,
+                    totalUsed: 0,
+                    icon: getIcon(cleanName)
+                };
+
+                setItems([newItem, ...items]);
+                setFormData({ name: '', quantity: '', unit: '个', date: '' });
+                setIsFormOpen(false);
+            };
+
+            const handleSaveEdit = (e) => {
+                e.preventDefault();
+                if (!editForm.name || editForm.quantity === '') return;
+
+                const categoryInfo = CATEGORIES.find(c => c.id === editingItem.category);
+                const isFresh = categoryInfo?.type === 'fresh';
+                const finalDate = parseDateInput(editForm.date);
+                const newQuantity = parseFloat(editForm.quantity);
+                const newUsed = parseFloat(editForm.totalUsed);
+
+                setItems(items.map(i => {
+                    if (i.id === editingItem.id) {
+                        return {
+                            ...i,
+                            name: editForm.name.trim(),
+                            quantity: Number(newQuantity.toFixed(2)),
+                            unit: editForm.unit,
+                            totalUsed: Number(newUsed.toFixed(2)),
+                            purchaseDate: isFresh ? finalDate : null,
+                            expiryDate: !isFresh ? finalDate : null,
+                            icon: getIcon(editForm.name.trim()) 
+                        };
+                    }
+                    return i;
+                }));
+                setEditingItem(null);
+            };
+
+            const updateQuantity = (id, delta) => {
+                setItems(items.map(item => {
+                    if (item.id === id) {
+                        const newQuantity = Math.max(0, item.quantity + delta);
+                        // 确保消耗量是正数，只在减少时增加消耗量
+                        const usedDelta = delta < 0 ? (item.quantity - newQuantity) : 0; 
+                        return { 
+                            ...item, 
+                            quantity: Number(newQuantity.toFixed(2)), 
+                            totalUsed: Number((item.totalUsed + usedDelta).toFixed(2))
+                        };
+                    }
+                    return item;
+                }));
+            };
+
+            // 批量减少模态框的打开
+            const handleOpenBulkReduce = (item) => {
+                setBulkReducingItem(item);
+                setBulkReduceAmount(''); // 重置输入
+                setBulkError('');
+            };
+
+            // 批量减少模态框的确认
+            const handleConfirmBulkReduce = (e) => {
+                e.preventDefault();
+                if (!bulkReducingItem) return;
+
+                const val = parseFloat(bulkReduceAmount);
+                const currentQuantity = bulkReducingItem.quantity;
+                
+                if (isNaN(val) || val <= 0) {
+                    setBulkError("请输入一个有效的正数！");
+                    return;
+                }
+                
+                if (val > currentQuantity) {
+                    setBulkError(`减少数量不能超过库存 ${currentQuantity}${bulkReducingItem.unit}！`);
+                    return;
+                }
+
+                // 成功减少
+                updateQuantity(bulkReducingItem.id, -val);
+                setBulkReducingItem(null);
+                setBulkReduceAmount('');
+                setBulkError('');
+            };
+
+            const handleCancelBulkReduce = () => {
+                setBulkReducingItem(null);
+                setBulkReduceAmount('');
+                setBulkError('');
+            };
+
+            const deleteItem = (id) => {
+                // 由于禁止使用原生 confirm/alert，这里采用简单处理：直接删除，或等待实现自定义确认模态框
+                // 提醒：在实际部署中，应该使用自定义模态框替代原生的 window.confirm
+                if (window.confirm('确定要彻底删除这个食材卡片吗？(历史累计数据也会消失)')) {
+                     setItems(items.filter(i => i.id !== id));
+                }
+            };
+
+            const filteredItems = items.filter(i => i.category === activeCategory);
+            const activeCategoryInfo = CATEGORIES.find(c => c.id === activeCategory);
+
+            // --- UI 渲染 ---
+
+            const renderNav = () => (
+                <div className="sticky top-0 z-40 glass-nav shadow-lg">
+                    <div className="px-4 py-3 flex justify-between items-center">
+                        <h1 className="text-xl font-bold text-morandi-dark flex items-center gap-2">
+                            {/* 导航文字使用深芥末黄 */}
+                            <Icons.Fridge size={28} className="text-morandi-dark"/> 咔咔冰箱
+                        </h1>
+                        <button 
+                            onClick={() => setIsFormOpen(true)}
+                            className="bg-accent-dark hover:bg-accent-light text-white p-2 rounded-full shadow-lg shadow-accent-light/50 transition-all active:scale-95"
+                        >
+                            <Icons.Plus size={24} />
+                        </button>
+                    </div>
+                    <div className="flex overflow-x-auto hide-scrollbar px-4 pb-3 gap-3">
+                        {CATEGORIES.map(cat => (
+                            <button
+                                key={cat.id}
+                                onClick={() => setActiveCategory(cat.id)}
+                                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
+                                    activeCategory === cat.id 
+                                    ? 'bg-morandi-dark text-white shadow-md shadow-morandi-dark/50' 
+                                    : 'bg-white text-morandi-dark/80 border border-morandi-dark/20'
+                                }`}
+                            >
+                                {cat.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            const renderGrid = () => (
+                <div className="p-4 pb-24 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {filteredItems.map(item => {
+                        const isEmpty = item.quantity <= 0;
+                        const DisplayIcon = () => (
+                            item.icon 
+                            ? <span className="text-3xl">{item.icon}</span> 
+                            : <span className="text-xl font-bold text-white bg-accent-dark w-10 h-10 rounded-full flex items-center justify-center">{item.name[0]}</span>
+                        );
+
+                        return (
+                            <div 
+                                key={item.id} 
+                                onClick={() => setEditingItem(item)}
+                                className={`bg-white rounded-2xl px-3 pt-3 pb-4 card-shadow flex flex-col relative transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-accent-light active:scale-[0.98] ${isEmpty ? 'item-empty' : ''}`}
+                            >
+                                {/* 1. Header Row: Icon + Name + Delete */}
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                        <div className="shrink-0"><DisplayIcon /></div>
+                                        <h3 className="font-bold text-gray-800 text-lg leading-tight truncate">{item.name}</h3>
+                                    </div>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
+                                        className="text-gray-300 hover:text-red-400 p-1 shrink-0"
+                                    >
+                                        <Icons.Trash2 size={16}/>
+                                    </button>
+                                </div>
+
+                                {/* 2. Quantity Section (主数量使用活力橙) */}
+                                <div className="flex items-baseline gap-1 mb-2">
+                                    <span className={`text-3xl font-black tracking-tight ${isEmpty ? 'text-gray-400' : 'text-accent-dark'}`}>
+                                        {item.quantity}
+                                    </span>
+                                    <span className="text-sm text-gray-400 font-bold">{item.unit}</span>
+                                </div>
+
+                                {/* 3. Dates Section */}
+                                <div className="mb-3 space-y-1">
+                                    {item.purchaseDate && (
+                                        <div className="inline-flex items-center gap-1 text-xs text-morandi-dark bg-morandi-light/50 px-2 py-0.5 rounded font-medium">
+                                            <Icons.Calendar size={12} /> {item.purchaseDate}
+                                        </div>
+                                    )}
+                                    {item.expiryDate && (
+                                        <div className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-100 px-2 py-0.5 rounded font-medium">
+                                            <Icons.Clock size={12} /> {item.expiryDate}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 4. Bottom Row: History & Controls (mt-auto 顶到最底部，确保有底边距) */}
+                                <div className="flex items-end justify-between mt-auto pt-3 border-t border-gray-100">
+                                    <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1">
+                                        <Icons.History size={10}/> 消耗 {item.totalUsed}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                        {
