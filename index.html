@@ -95,9 +95,10 @@
             Plus: (props) => <IconBase {...props}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>,
             Minus: (props) => <IconBase {...props}><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>,
             PackageOpen: (props) => <IconBase {...props}><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z"></path><path d="M12 12l9-4.5"></path><path d="M12 12v9"></path><path d="M12 12L3 7.5"></path><path d="M16 10l-4-2-4 2"></path></IconBase>,
+            // 【关键修复】：修复 Uncaught SyntaxError 错误
             History: (props) => <IconBase {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"></path><path d="M3 3v9h9"></path></IconBase>,
-            Trash2: (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 0 0 1-2 2H7a2 0 0 1-2-2V6m3 0V4a2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></IconBase>,
-            Calendar: (props) => <IconBase {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></Calendar>,
+            Trash2: (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></IconBase>,
+            Calendar: (props) => <IconBase {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></IconBase>,
             Clock: (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></IconBase>,
             X: (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>,
             Edit: (props) => <IconBase {...props}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></IconBase>,
@@ -134,7 +135,7 @@
             return null;
         };
         
-        // **【新增】数据清洗函数**：确保关键字段为有效数字
+        // **【健壮性】数据清洗函数**：确保关键字段为有效数字，防止数据崩溃
         const sanitizeItems = (loadedItems) => {
             if (!Array.isArray(loadedItems)) return [];
             return loadedItems.map(item => ({
@@ -157,17 +158,17 @@
             // 筛选当前分类的食材
             const categoryItems = items.filter(i => i.category === activeCategory);
             
-            // **【零数量沉底效果】**：创建副本并使用健壮的排序逻辑
+            // **【零数量沉底效果 V2】**：创建副本并使用健壮的排序逻辑
             const filteredItems = [...categoryItems].sort((a, b) => { 
-                // 健壮地获取数量 (即使在渲染时，也确保是数字)
+                // 1. 健壮地获取数量：即使数据加载后依然检查
                 const aQty = Number(a.quantity) || 0;
                 const bQty = Number(b.quantity) || 0;
 
-                // 数量 <= 0 视为“空” (true=1, false=0)
+                // 2. 数量 <= 0 视为“空” (true=1, false=0)
                 const aIsEmpty = aQty <= 0; 
                 const bIsEmpty = bQty <= 0; 
 
-                // 排序：非空 (0) 优先于 空 (1)。
+                // 3. 排序：非空 (0) 优先于 空 (1)。
                 return aIsEmpty - bIsEmpty;
             });
 
