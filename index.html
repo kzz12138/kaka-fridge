@@ -38,7 +38,6 @@
         body { background-color: #fff8e1; color: #374151; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
         
         /* 卡片阴影使用浅橙色 */
-        /* RGB(255, 183, 77) from #ffb74d */
         .card-shadow { 
             box-shadow: 0 4px 15px -2px rgba(255, 183, 77, 0.4); 
             height: 12.5rem; 
@@ -46,9 +45,9 @@
         
         /* 导航栏背景改为浅奶油黄 */
         .glass-nav { 
-            background: #ffecb3; /* 浅奶油黄背景 */
+            background: #ffecb3; 
             backdrop-filter: blur(8px); 
-            border-bottom: 1px solid rgba(230, 165, 0, 0.15); /* 使用深芥末黄的淡边框 */
+            border-bottom: 1px solid rgba(230, 165, 0, 0.15); 
         }
         
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -71,7 +70,61 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useCallback } = React;
+
+        // --- 辅助组件定义 (已重新添加) ---
+
+        // Custom Toast Hook
+        const useToast = () => {
+            const [toast, setToast] = useState(null);
+            
+            const showToast = useCallback((message, type = 'info', duration = 3000) => {
+                setToast({ message, type });
+                setTimeout(() => setToast(null), duration);
+            }, []);
+
+            const Toast = () => toast ? (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] p-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300 animate-slide-up"
+                    style={{ 
+                        backgroundColor: toast.type === 'error' ? '#fee2e2' : (toast.type === 'success' ? '#d1fae5' : '#ffedd5'),
+                        color: toast.type === 'error' ? '#dc2626' : (toast.type === 'success' ? '#059669' : '#ff9800'),
+                        border: '1px solid ' + (toast.type === 'error' ? '#fca5a5' : (toast.type === 'success' ? '#a7f3d0' : '#ffb74d'))
+                    }}
+                >
+                    {toast.message}
+                </div>
+            ) : null;
+
+            return { showToast, Toast };
+        };
+
+        // Custom Modal Hook for Confirmations (用于删除)
+        const useModal = () => {
+            const [modalState, setModalState] = useState({ isOpen: false, message: '', onConfirm: () => {} });
+
+            const showConfirmModal = useCallback((message, onConfirm) => {
+                setModalState({ isOpen: true, message, onConfirm: () => {
+                    onConfirm();
+                    setModalState(prev => ({ ...prev, isOpen: false }));
+                }});
+            }, []);
+
+            const closeModal = () => setModalState(prev => ({ ...prev, isOpen: false }));
+
+            const Modal = () => modalState.isOpen ? (
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl animate-bounce-up border border-gray-200">
+                        <p className="text-gray-700 text-lg mb-6 text-center">{modalState.message}</p>
+                        <div className="flex justify-between gap-3">
+                            <button onClick={closeModal} className="flex-1 bg-gray-100 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-200 transition">取消</button>
+                            <button onClick={modalState.onConfirm} className="flex-1 bg-red-500 text-white py-2.5 rounded-xl font-bold hover:bg-red-600 transition">确认删除</button>
+                        </div>
+                    </div>
+                </div>
+            ) : null;
+
+            return { showConfirmModal, Modal };
+        };
 
         // --- 内置图标组件 ---
         const IconBase = ({ size = 24, children, className = "" }) => (
@@ -95,7 +148,6 @@
             Plus: (props) => <IconBase {...props}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>,
             Minus: (props) => <IconBase {...props}><line x1="5" y1="12" x2="19" y2="12"></line></IconBase>,
             PackageOpen: (props) => <IconBase {...props}><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z"></path><path d="M12 12l9-4.5"></path><path d="M12 12v9"></path><path d="M12 12L3 7.5"></path><path d="M16 10l-4-2-4 2"></path></IconBase>,
-            // 【关键修复】：修复 Uncaught SyntaxError 错误
             History: (props) => <IconBase {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 12"></path><path d="M3 3v9h9"></path></IconBase>,
             Trash2: (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></IconBase>,
             Calendar: (props) => <IconBase {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></IconBase>,
@@ -150,6 +202,9 @@
         };
 
         const App = () => {
+            const { showConfirmModal, Modal } = useModal(); // 挂载 Modal Hook
+            const { showToast, Toast } = useToast(); // 挂载 Toast Hook
+
             const [items, setItems] = useState([]);
             const [activeCategory, setActiveCategory] = useState('meat');
             
@@ -158,7 +213,7 @@
             // 筛选当前分类的食材
             const categoryItems = items.filter(i => i.category === activeCategory);
             
-            // **【零数量沉底效果 V2】**：创建副本并使用健壮的排序逻辑
+            // 【零数量沉底效果 V2】：创建副本并使用健壮的排序逻辑
             const filteredItems = [...categoryItems].sort((a, b) => { 
                 // 1. 健壮地获取数量：即使数据加载后依然检查
                 const aQty = Number(a.quantity) || 0;
@@ -196,7 +251,7 @@
             const [bulkReduceAmount, setBulkReduceAmount] = useState('');
             const [bulkError, setBulkError] = useState('');
 
-            // **【关键修复】**：加载数据时进行数据清洗和容错处理
+            // **【本地存储修复】**：加载数据时进行数据清洗和容错处理
             useEffect(() => {
                 const saved = localStorage.getItem('kaka_fridge_items');
                 if (saved) {
@@ -250,7 +305,10 @@
             const handleAdd = (e) => {
                 e.preventDefault();
                 // 允许数量为 0，但名称不能为空
-                if (!formData.name) return; 
+                if (!formData.name) {
+                    showToast("食材名称不能为空", 'error');
+                    return;
+                }
 
                 const cleanName = formData.name.trim();
                 const categoryInfo = CATEGORIES.find(c => c.id === activeCategory);
@@ -274,13 +332,17 @@
                 };
 
                 setItems([newItem, ...items]);
+                showToast(`已添加: ${cleanName}`, 'success');
                 setFormData({ name: '', quantity: '', unit: '个', date: '' });
                 setIsFormOpen(false);
             };
 
             const handleSaveEdit = (e) => {
                 e.preventDefault();
-                if (!editForm.name || editForm.quantity === '') return;
+                if (!editForm.name || editForm.quantity === '') {
+                    showToast("名称和数量不能为空", 'error');
+                    return;
+                }
 
                 const categoryInfo = CATEGORIES.find(c => c.id === editingItem.category);
                 const isFresh = categoryInfo?.type === 'fresh';
@@ -304,6 +366,7 @@
                     return i;
                 }));
                 setEditingItem(null);
+                showToast(`已更新: ${editForm.name}`, 'info');
             };
 
             const updateQuantity = (id, delta) => {
@@ -315,6 +378,12 @@
                         const newQuantity = Math.max(0, currentQuantity + delta);
                         // 确保消耗量是正数，只在减少时增加消耗量
                         const usedDelta = delta < 0 ? (currentQuantity - newQuantity) : 0; 
+                        
+                        if (delta < 0 && currentQuantity <= 0) {
+                             showToast(`【${item.name}】库存已空，无法再减少`, 'info');
+                             return item;
+                        }
+
                         return { 
                             ...item, 
                             quantity: Number(newQuantity.toFixed(2)), 
@@ -325,8 +394,20 @@
                 }));
             };
 
+            const deleteItem = (id) => {
+                 showConfirmModal('确定要彻底删除这个食材卡片吗？(历史累计数据也会消失)', () => {
+                    setItems(items.filter(i => i.id !== id));
+                    showToast("食材卡片已删除。", 'success');
+                 });
+            };
+
             // 批量减少模态框的打开
             const handleOpenBulkReduce = (item) => {
+                const currentQty = Number(item.quantity) || 0;
+                if (currentQty <= 0) {
+                    showToast(`【${item.name}】库存已空`, 'info');
+                    return;
+                }
                 setBulkReducingItem(item);
                 setBulkReduceAmount(''); // 重置输入
                 setBulkError('');
@@ -352,6 +433,7 @@
 
                 // 成功减少
                 updateQuantity(bulkReducingItem.id, -val);
+                showToast(`已消耗 ${val} ${bulkReducingItem.unit} 的 ${bulkReducingItem.name}`, 'success');
                 setBulkReducingItem(null);
                 setBulkReduceAmount('');
                 setBulkError('');
@@ -361,13 +443,6 @@
                 setBulkReducingItem(null);
                 setBulkReduceAmount('');
                 setBulkError('');
-            };
-
-            const deleteItem = (id) => {
-                // 由于禁止使用原生 confirm/alert，这里采用简单处理：直接删除
-                if (window.confirm('确定要彻底删除这个食材卡片吗？(历史累计数据也会消失)')) {
-                     setItems(items.filter(i => i.id !== id));
-                }
             };
 
             // --- UI 渲染 ---
@@ -404,110 +479,109 @@
                 </div>
             );
 
-     const renderGrid = () => {
-    // filteredItems 已经包含了 0 数量沉底的排序逻辑
-    
-    return (
-        <div className="p-4 pb-24 grid grid-cols-2 md:grid-cols-4 gap-4">
-            {filteredItems.map(item => {
-                // 健壮地判断是否为空
-                const currentQty = Number(item.quantity) || 0;
-                const isEmpty = currentQty <= 0;
-                const DisplayIcon = () => (
-                    item.icon 
-                    ? <span className="text-3xl">{item.icon}</span> 
-                    : <span className="text-xl font-bold text-white bg-accent-dark w-10 h-10 rounded-full flex items-center justify-center">{item.name[0]}</span>
-                );
-
+            const renderGrid = () => {
+                
                 return (
-                    <div 
-                        key={item.id} 
-                        onClick={() => setEditingItem(item)}
-                        className={`bg-white rounded-2xl px-3 pt-3 pb-4 card-shadow flex flex-col relative transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-accent-light active:scale-[0.98] ${isEmpty ? 'item-empty' : ''}`}
-                    >
-                        {/* 1. Header Row: Icon + Name + Delete */}
-                        <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                                <div className="shrink-0"><DisplayIcon /></div>
-                                <h3 className="font-bold text-gray-800 text-lg leading-tight truncate">{item.name}</h3>
-                            </div>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
-                                className="text-gray-300 hover:text-red-400 p-1 shrink-0"
-                            >
-                                <Icons.Trash2 size={16}/>
-                            </button>
-                        </div>
+                    <div className="p-4 pb-24 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {filteredItems.map(item => {
+                            // 健壮地判断是否为空
+                            const currentQty = Number(item.quantity) || 0;
+                            const isEmpty = currentQty <= 0;
+                            const DisplayIcon = () => (
+                                item.icon 
+                                ? <span className="text-3xl">{item.icon}</span> 
+                                : <span className="text-xl font-bold text-white bg-accent-dark w-10 h-10 rounded-full flex items-center justify-center">{item.name[0]}</span>
+                            );
 
-                        {/* 2. Quantity Section (主数量使用活力橙) */}
-                        <div className="flex items-baseline gap-1 mb-2">
-                            {/* 确保显示的是一个数字 */}
-                            <span className={`text-3xl font-black tracking-tight ${isEmpty ? 'text-gray-400' : 'text-accent-dark'}`}>
-                                {currentQty}
-                            </span>
-                            <span className="text-sm text-gray-400 font-bold">{item.unit}</span>
-                        </div>
+                            return (
+                                <div 
+                                    key={item.id} 
+                                    onClick={() => setEditingItem(item)}
+                                    className={`bg-white rounded-2xl px-3 pt-3 pb-4 card-shadow flex flex-col relative transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-accent-light active:scale-[0.98] ${isEmpty ? 'item-empty' : ''}`}
+                                >
+                                    {/* 1. Header Row: Icon + Name + Delete */}
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                            <div className="shrink-0"><DisplayIcon /></div>
+                                            <h3 className="font-bold text-gray-800 text-lg leading-tight truncate">{item.name}</h3>
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} 
+                                            className="text-gray-300 hover:text-red-400 p-1 shrink-0"
+                                        >
+                                            <Icons.Trash2 size={16}/>
+                                        </button>
+                                    </div>
 
-                        {/* 3. Dates Section */}
-                        <div className="mb-3 space-y-1">
-                            {item.purchaseDate && (
-                                <div className="inline-flex items-center gap-1 text-xs text-morandi-dark bg-morandi-light/50 px-2 py-0.5 rounded font-medium">
-                                    <Icons.Calendar size={12} /> {item.purchaseDate}
+                                    {/* 2. Quantity Section (主数量使用活力橙) */}
+                                    <div className="flex items-baseline gap-1 mb-2">
+                                        {/* 确保显示的是一个数字 */}
+                                        <span className={`text-3xl font-black tracking-tight ${isEmpty ? 'text-gray-400' : 'text-accent-dark'}`}>
+                                            {currentQty}
+                                        </span>
+                                        <span className="text-sm text-gray-400 font-bold">{item.unit}</span>
+                                    </div>
+
+                                    {/* 3. Dates Section */}
+                                    <div className="mb-3 space-y-1">
+                                        {item.purchaseDate && (
+                                            <div className="inline-flex items-center gap-1 text-xs text-morandi-dark bg-morandi-light/50 px-2 py-0.5 rounded font-medium">
+                                                <Icons.Calendar size={12} /> {item.purchaseDate}
+                                            </div>
+                                        )}
+                                        {item.expiryDate && (
+                                            <div className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-100 px-2 py-0.5 rounded font-medium">
+                                                <Icons.Clock size={12} /> {item.expiryDate}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 4. Bottom Row: History & Controls (mt-auto 顶到最底部，确保有底边距) */}
+                                    <div className="flex items-end justify-between mt-auto pt-3 border-t border-gray-100">
+                                        <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1">
+                                            <Icons.History size={10}/> 消耗 {Number(item.totalUsed) || 0}
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                            {/* 新增：批量减少按钮 - 触发自定义模态框 */}
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleOpenBulkReduce(item); }}
+                                                className="text-[10px] font-bold w-8 h-8 rounded-full bg-accent-dark/10 text-accent-dark flex items-center justify-center hover:bg-accent-dark/20 active:scale-90 transition"
+                                            >
+                                                批量
+                                            </button>
+                                            
+                                            {/* 减号按钮：短按 -1 (使用浅奶油黄背景 + 深芥末黄文字) */}
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}
+                                                className="w-8 h-8 rounded-full bg-morandi-light text-morandi-dark flex items-center justify-center hover:bg-morandi-dark/20 active:scale-90 transition cursor-pointer"
+                                            >
+                                                <Icons.Minus size={16} />
+                                            </button>
+
+                                            {/* 加号按钮：短按 +1 (使用活力橙主色) */}
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}
+                                                className="w-8 h-8 rounded-full bg-accent-dark text-white flex items-center justify-center shadow-md shadow-accent-light/50 hover:bg-accent-light active:scale-90 transition"
+                                            >
+                                                <Icons.Plus size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
-                            {item.expiryDate && (
-                                <div className="inline-flex items-center gap-1 text-xs text-red-500 bg-red-100 px-2 py-0.5 rounded font-medium">
-                                    <Icons.Clock size={12} /> {item.expiryDate}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* 4. Bottom Row: History & Controls (mt-auto 顶到最底部，确保有底边距) */}
-                        <div className="flex items-end justify-between mt-auto pt-3 border-t border-gray-100">
-                            <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1">
-                                <Icons.History size={10}/> 消耗 {Number(item.totalUsed) || 0}
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                                {/* 新增：批量减少按钮 - 触发自定义模态框 */}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleOpenBulkReduce(item); }}
-                                    className="text-[10px] font-bold w-8 h-8 rounded-full bg-accent-dark/10 text-accent-dark flex items-center justify-center hover:bg-accent-dark/20 active:scale-90 transition"
-                                >
-                                    批量
-                                </button>
-                                
-                                {/* 减号按钮：短按 -1 (使用浅奶油黄背景 + 深芥末黄文字) */}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}
-                                    className="w-8 h-8 rounded-full bg-morandi-light text-morandi-dark flex items-center justify-center hover:bg-morandi-dark/20 active:scale-90 transition cursor-pointer"
-                                >
-                                    <Icons.Minus size={16} />
-                                </button>
-
-                                {/* 加号按钮：短按 +1 (使用活力橙主色) */}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}
-                                    className="w-8 h-8 rounded-full bg-accent-dark text-white flex items-center justify-center shadow-md shadow-accent-light/50 hover:bg-accent-light active:scale-90 transition"
-                                >
-                                    <Icons.Plus size={16} />
-                                </button>
-                            </div>
-                        </div>
+                            );
+                        })}
+                        
+                        <button 
+                            onClick={() => setIsFormOpen(true)}
+                            className="border-2 border-dashed border-morandi-dark/30 rounded-2xl flex flex-col items-center justify-center text-morandi-dark/50 gap-2 h-48 hover:bg-morandi-light/50 hover:border-morandi-dark transition"
+                        >
+                            <Icons.Plus size={32} />
+                            <span className="text-xs font-bold">入库{activeCategoryInfo.name}</span>
+                        </button>
                     </div>
                 );
-            })}
-            
-            <button 
-                onClick={() => setIsFormOpen(true)}
-                className="border-2 border-dashed border-morandi-dark/30 rounded-2xl flex flex-col items-center justify-center text-morandi-dark/50 gap-2 h-48 hover:bg-morandi-light/50 hover:border-morandi-dark transition"
-            >
-                <Icons.Plus size={32} />
-                <span className="text-xs font-bold">入库{activeCategoryInfo.name}</span>
-            </button>
-        </div>
-    );
-};
+            };
 
             // 通用输入组件
             const renderInput = (label, value, onChange, placeholder = "", type = "text", inputClassName = "") => (
@@ -735,6 +809,8 @@
                     {renderAddForm()}
                     {renderEditForm()}
                     {renderBulkReduceModal()} {/* 批量减少模态框 */}
+                    <Toast />
+                    <Modal />
                 </div>
             );
         };
